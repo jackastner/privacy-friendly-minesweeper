@@ -56,11 +56,11 @@ import org.secuso.privacyfriendlyminesweeper.database.DatabaseSavedGameProvide;
 import org.secuso.privacyfriendlyminesweeper.database.DatabaseSavedGameWriter;
 import org.secuso.privacyfriendlyminesweeper.database.DatabaseWriter;
 import org.secuso.privacyfriendlyminesweeper.database.PFMSQLiteHelper;
+import org.secuso.privacyfriendlyminesweeper.minesweeper.MineSweeper;
 
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.Random;
 
 /**
  * @author I3ananas, max-dreger
@@ -74,22 +74,13 @@ import java.util.Random;
  * - load saved games
  */
 public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewAdapter.ItemClickListener, BestTimeReaderReceiver {
+    final MineSweeper mineSweeper = new MineSweeper();
     PlayRecyclerViewAdapter adapter;
     SharedPreferences sharedPreferences;
-    String game_mode;
-    int numberOfRows;
-    int numberOfColumns;
-    int numberOfBombs;
-    int numberOfCells;
     RecyclerView recyclerView;
     int maxHeight;
     boolean firstTime;
-    boolean marking;
-    int[] data;
-    int[] status;
     TextView mines;
-    int bombsLeft;
-    int countDownToWin;
     boolean firstClick;
     Bundle parameter;
     Chronometer timer;
@@ -97,18 +88,12 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
     DatabaseWriter writer;
     int bestTime;
     boolean newBestTime;
-    Boolean revealingAround;
-    boolean gameEnded;
     boolean savecheck;
     String savedContent;
     String savedStatus;
     int totalSavedSeconds;
     Toolbar toolbar;
     Handler handler;
-    int[] landscape_data;
-    int[] landscape_status;
-    int[] not_in_use_data;
-    int[] not_in_use_status;
     boolean savedinstancestate;
     int desired_width;
     boolean game_saved;
@@ -120,14 +105,14 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
 
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
-        numberOfColumns = 0;
-        numberOfRows = 0;
-        numberOfBombs = 0;
+        mineSweeper.setNumberOfColumns(0);
+        mineSweeper.setNumberOfRows(0);
+        mineSweeper.setNumberOfBombs(0);
 
         landscape = (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE);
 
         newBestTime = false;
-        gameEnded = false;
+        mineSweeper.setGameEnded(false);
         game_saved = false;
 
         //check if this is loading a saved game
@@ -144,26 +129,26 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
             savedStatus = savedInfo.get(6);
 
             if (savedGameMode.equalsIgnoreCase("easy")) {
-                game_mode = "easy";
+                mineSweeper.setGame_mode("easy");
                 parameter.putShortArray("info", new short[]{(short)6, (short)10, (short)7});
                 parameter.putBoolean("continue", false);
-                numberOfColumns = 6;
-                numberOfRows = 10;
-                numberOfBombs = 7;
+                mineSweeper.setNumberOfColumns(6);
+                mineSweeper.setNumberOfRows(10);
+                mineSweeper.setNumberOfBombs(7);
             } else if (savedGameMode.equalsIgnoreCase("medium")) {
-                game_mode = "medium";
+                mineSweeper.setGame_mode("medium");
                 parameter.putShortArray("info", new short[]{(short)10, (short)16, (short)24});
                 parameter.putBoolean("continue", false);
-                numberOfColumns = 10;
-                numberOfRows = 16;
-                numberOfBombs = 24;
+                mineSweeper.setNumberOfColumns(10);
+                mineSweeper.setNumberOfRows(16);
+                mineSweeper.setNumberOfBombs(24);
             } else {
-                game_mode = "difficult";
+                mineSweeper.setGame_mode("difficult");
                 parameter.putShortArray("info", new short[]{(short)12, (short)19, (short)46});
                 parameter.putBoolean("continue", false);
-                numberOfColumns = 12;
-                numberOfRows = 19;
-                numberOfBombs = 46;
+                mineSweeper.setNumberOfColumns(12);
+                mineSweeper.setNumberOfRows(19);
+                mineSweeper.setNumberOfBombs(46);
             }
 
             //handle the saved time
@@ -178,21 +163,21 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
         //get game mode and PlayingField size if this is not loading a saved game
         else {
             short[] test = parameter.getShortArray("info");
-            numberOfColumns = test[0];
-            numberOfRows = test[1];
-            numberOfBombs = test[2];
+            mineSweeper.setNumberOfColumns(test[0]);
+            mineSweeper.setNumberOfRows(test[1]);
+            mineSweeper.setNumberOfBombs(test[2]);
 
-            if((numberOfColumns == 6) && (numberOfRows == 10) && (numberOfBombs == 7)){
-                game_mode = "easy";
+            if((mineSweeper.getNumberOfColumns() == 6) && (mineSweeper.getNumberOfRows() == 10) && (mineSweeper.getNumberOfBombs() == 7)){
+                mineSweeper.setGame_mode("easy");
             }
-            else if((numberOfColumns == 10) && (numberOfRows == 16) && (numberOfBombs == 24)){
-                game_mode = "medium";
+            else if((mineSweeper.getNumberOfColumns() == 10) && (mineSweeper.getNumberOfRows() == 16) && (mineSweeper.getNumberOfBombs() == 24)){
+                mineSweeper.setGame_mode("medium");
             }
-            else if((numberOfColumns == 12) && (numberOfRows == 19) && (numberOfBombs == 46)){
-                game_mode = "difficult";
+            else if((mineSweeper.getNumberOfColumns() == 12) && (mineSweeper.getNumberOfRows() == 19) && (mineSweeper.getNumberOfBombs() == 46)){
+                mineSweeper.setGame_mode("difficult");
             }
             else{
-                game_mode = "user-defined";
+                mineSweeper.setGame_mode("user-defined");
             }
         }
 
@@ -203,41 +188,41 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setDisplayShowTitleEnabled(false);
             TextView text_game_mode = (TextView) toolbar.findViewById(R.id.game_mode);
-            if(game_mode.equals("easy")){
+            if(mineSweeper.getGame_mode().equals("easy")){
                 text_game_mode.setText(getResources().getString(R.string.game_mode_easy));
             }
-            if(game_mode.equals("medium")){
+            if(mineSweeper.getGame_mode().equals("medium")){
                 text_game_mode.setText(getResources().getString(R.string.game_mode_medium));
             }
-            if(game_mode.equals("difficult")){
+            if(mineSweeper.getGame_mode().equals("difficult")){
                 text_game_mode.setText(getResources().getString(R.string.game_mode_difficult));
             }
-            if(game_mode.equals("user-defined")){
+            if(mineSweeper.getGame_mode().equals("user-defined")){
                 text_game_mode.setText(getResources().getString(R.string.game_mode_user_defined_2lines));
             }
         }
 
         //Creating the right sized the PlayingField
-        numberOfCells = numberOfRows * numberOfColumns;
-        data = new int[numberOfCells];
-        countDownToWin = numberOfCells;
+        mineSweeper.setNumberOfCells(mineSweeper.getNumberOfRows() * mineSweeper.getNumberOfColumns());
+        mineSweeper.setData(new int[mineSweeper.getNumberOfCells()]);
+        mineSweeper.setCountDownToWin(mineSweeper.getNumberOfCells());
 
         //status saves the state of the cell
         //0 = normal, 1 = revealed, 2 = marked
-        status = new int[numberOfCells];
-        for (int i = 0; i < numberOfCells; i++) {
-            status[i] = 0;
+        mineSweeper.setStatus(new int[mineSweeper.getNumberOfCells()]);
+        for (int i = 0; i < mineSweeper.getNumberOfCells(); i++) {
+            mineSweeper.getStatus()[i] = 0;
         }
 
         //check if there is a saved instance state
         if (param != null) {
-            numberOfRows = param.getInt("rows");
-            numberOfColumns = param.getInt("columns");
-            data = param.getIntArray("data");
-            status = param.getIntArray("status");
+            mineSweeper.setNumberOfRows(param.getInt("rows"));
+            mineSweeper.setNumberOfColumns(param.getInt("columns"));
+            mineSweeper.setData(param.getIntArray("data"));
+            mineSweeper.setStatus(param.getIntArray("status"));
             totalSavedSeconds = param.getInt("time");
             boolean noinfo = param.getBoolean("empty");
-            gameEnded = param.getBoolean("gameended");
+            mineSweeper.setGameEnded(param.getBoolean("gameended"));
             if (noinfo) {
                 savecheck = false;
 
@@ -245,10 +230,10 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
                 savecheck = true;
                 savedinstancestate = true;
             }
-            if (numberOfRows < numberOfColumns) {
-                int save = numberOfColumns;
-                numberOfColumns = numberOfRows;
-                numberOfRows = save;
+            if (mineSweeper.getNumberOfRows() < mineSweeper.getNumberOfColumns()) {
+                int save = mineSweeper.getNumberOfColumns();
+                mineSweeper.setNumberOfColumns(mineSweeper.getNumberOfRows());
+                mineSweeper.setNumberOfRows(save);
             }
         }
 
@@ -259,43 +244,41 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
                 String[] parcedStatus = savedStatus.split("");
 
                 StringBuilder line = new StringBuilder();
-                for (int i = 0; i < numberOfCells; i++) {
+                for (int i = 0; i < mineSweeper.getNumberOfCells(); i++) {
                     line.append(parcedContent[i + 1]);
-                    data[i] = Integer.parseInt(parcedContent[i + 1]);
-                    status[i] = Integer.parseInt(parcedStatus[i + 1]);
+                    mineSweeper.getData()[i] = Integer.parseInt(parcedContent[i + 1]);
+                    mineSweeper.getStatus()[i] = Integer.parseInt(parcedStatus[i + 1]);
                 }
             }
             //flip the info if we are in landscape mode
             if(landscape){
-                landscape_data = new int[data.length];
+                mineSweeper.setLandscape_data(new int[mineSweeper.getData().length]);
                 int x = 1;
-                int start = numberOfCells - numberOfColumns;
+                int start = mineSweeper.getNumberOfCells() - mineSweeper.getNumberOfColumns();
                 int now = start;
-                for (int i = 0; i < data.length; i++) {
-                    landscape_data[i] = data[now];
-                    now = now - numberOfColumns;
+                for (int i = 0; i < mineSweeper.getData().length; i++) {
+                    mineSweeper.getLandscape_data()[i] = mineSweeper.getData()[now];
+                    now = now - mineSweeper.getNumberOfColumns();
                     if(now < 0) {
                         now = start + x;
                         x++;
                     }
                 }
-                not_in_use_data = data;
-                data = landscape_data;
+                mineSweeper.setData(mineSweeper.getLandscape_data());
 
                 x = 1;
-                start = numberOfCells - numberOfColumns;
-                landscape_status = new int[status.length];
+                start = mineSweeper.getNumberOfCells() - mineSweeper.getNumberOfColumns();
+                mineSweeper.setLandscape_status(new int[mineSweeper.getStatus().length]);
                 now = start;
-                for (int i = 0; i < status.length; i++) {
-                    landscape_status[i] = status[now];
-                    now = now - numberOfColumns;
+                for (int i = 0; i < mineSweeper.getStatus().length; i++) {
+                    mineSweeper.getLandscape_status()[i] = mineSweeper.getStatus()[now];
+                    now = now - mineSweeper.getNumberOfColumns();
                     if(now < 0) {
                         now = start + x;
                         x++;
                     }
                 }
-                not_in_use_status = status;
-                status = landscape_status;
+                mineSweeper.setStatus(mineSweeper.getLandscape_status());
             }
         }
 
@@ -324,7 +307,7 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
                 ViewGroup.LayoutParams params = recyclerView.getLayoutParams();
                 params.height = height;
                 params.width = desired_width;
-                maxHeight = height/numberOfRows;
+                maxHeight = height/ mineSweeper.getNumberOfRows();
                 //cells have a buffer of 2dp, so substract 1dp*2 transformed into pixel value
                 maxHeight = maxHeight - Math.round(2*(getResources().getDisplayMetrics().xdpi/ DisplayMetrics.DENSITY_DEFAULT));
 
@@ -355,24 +338,24 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
 
         //fistLaunch
         if(getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE){
-            int save = numberOfColumns;
-            numberOfColumns = numberOfRows;
-            numberOfRows = save;
+            int save = mineSweeper.getNumberOfColumns();
+            mineSweeper.setNumberOfColumns(mineSweeper.getNumberOfRows());
+            mineSweeper.setNumberOfRows(save);
         }
-        recyclerView.setLayoutManager(new GridLayoutManager(this, numberOfColumns, LinearLayoutManager.VERTICAL, false));
+        recyclerView.setLayoutManager(new GridLayoutManager(this, mineSweeper.getNumberOfColumns(), LinearLayoutManager.VERTICAL, false));
 
         createAdapter(maxHeight);
 
         firstClick = true;
 
         //handling the Button that toggles between revealing cells and marking them as mines
-        marking = false;
+        mineSweeper.setMarking(false);
         final Button button = (Button) findViewById(R.id.toggle);
         button.setTextColor(getResources().getColor(R.color.white));
         button.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
-                if (marking) {
+                if (mineSweeper.isMarking()) {
                     if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
                         Button button2 = (Button) findViewById(R.id.toggle2);
                         button2.callOnClick();
@@ -381,7 +364,7 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
                         button2.setTextColor(getResources().getColor(R.color.white));
                     }
                     button.setBackground(getDrawable(R.drawable.button_highlighted));
-                    marking = false;
+                    mineSweeper.setMarking(false);
                     button.setText(getString(R.string.untoggled));
                     button.setTextColor(getResources().getColor(R.color.white));
                 } else {
@@ -392,7 +375,7 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
                         button2.setBackground(getDrawable(R.drawable.button_highlighted_clicked));
                     }
                     view.setBackground(getDrawable(R.drawable.button_highlighted_clicked));
-                    marking = true;
+                    mineSweeper.setMarking(true);
                     button.setText(getString(R.string.toggled));
                     button.setTextColor(getResources().getColor(R.color.black));
 
@@ -405,18 +388,18 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
             button2.setOnClickListener(new View.OnClickListener(){
                 @Override
                 public void onClick(View view) {
-                    if (marking) {
+                    if (mineSweeper.isMarking()) {
                         button2.setBackground(getDrawable(R.drawable.button_highlighted));
                         button2.setText(getString(R.string.untoggled));
                         button2.setTextColor(getResources().getColor(R.color.white));
-                        marking = false;
+                        mineSweeper.setMarking(false);
                         button.setBackground(getDrawable(R.drawable.button_highlighted));
                         button.setText(getString(R.string.untoggled));
                         button.setTextColor(getResources().getColor(R.color.white));
                     } else {
                         view.setBackground(getDrawable(R.drawable.button_highlighted_clicked));
                         button.setBackground(getDrawable(R.drawable.button_highlighted_clicked));
-                        marking = true;
+                        mineSweeper.setMarking(true);
                         button.setText(getString(R.string.toggled));
                         button.setTextColor(getResources().getColor(R.color.black));
                         button2.setText(getString(R.string.toggled));
@@ -427,10 +410,9 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
             });
         }
 
-        revealingAround = false;
-        bombsLeft = numberOfBombs;
+        mineSweeper.setBombsLeft(mineSweeper.getNumberOfBombs());
         mines = (TextView) toolbar.findViewById(R.id.mines);
-        mines.setText(String.valueOf(bombsLeft));
+        mines.setText(String.valueOf(mineSweeper.getBombsLeft()));
 
         ImageView mines_pic = (ImageView) toolbar.findViewById(R.id.mines_pic);
         mines_pic.setImageResource(R.drawable.mine);
@@ -438,7 +420,7 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
         handler = new Handler();
 
         bestTimeReader = new DatabaseBestTimeReader(new PFMSQLiteHelper(getApplicationContext()), this);
-        bestTimeReader.execute(game_mode);
+        bestTimeReader.execute(mineSweeper.getGame_mode());
         writer = new DatabaseWriter(new PFMSQLiteHelper(getApplicationContext()));
     }
 
@@ -447,200 +429,9 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
      * @param maximumHeight the maximum height of the singe Cells of the Playing Field
      */
     private void createAdapter(int maximumHeight) {
-        adapter = new PlayRecyclerViewAdapter(this, data, maxHeight);
+        adapter = new PlayRecyclerViewAdapter(this, mineSweeper.getData(), maxHeight);
         adapter.setClickListener(this);
         recyclerView.setAdapter(adapter);
-    }
-
-    /**
-     * This method fills the playing Field with data. First it puts the needed amount of bombs in random Cells, then Calculates the Number of Neighboring Bomb for each Cell
-     * @param notHere the position of the Cell where the user clicked first. This one can not have a Bomb in it
-     */
-    private void fillPlayingField(int notHere){
-
-        //put bombs at random positions
-        for (int i = 0; i < numberOfBombs; i++) {
-            int position;
-            Random randomGen = new Random();
-            position = randomGen.nextInt(numberOfCells);
-
-            //redo if the first clicked cell would get a bomb
-            if(position == notHere) {
-                i--;
-            }
-            //9 equals a bomb
-            //redo random position if there is a bomb already
-            else if (data[position] == 9) {
-                i--;
-            }
-            //redo if placing a bomb at position would produce a cluster of bombs
-            //4 or more horizontally and vertically neighbouring bombs are considered to be a cluster
-            //possible arrangements that are prevented:
-            //1) XX  2) XX   3) XXXX  4) XXX  5) XXX
-            //   XX      XX              X        X
-            else if(numberOfNeighbouringBombs(position, 0, position, new ArrayList<Integer>()) >= 3){
-                i--;
-            }
-            else {
-                data[position] = 9;
-            }
-        }
-
-        //Fill the playing field with numbers depending on bomb position
-        for (int pos= 0; pos < numberOfCells; pos++) {
-
-            if (data[pos] != 9) {
-                data[pos] = 0;
-                //check if position is in one corner of the Field
-                //bottom left
-                if (pos == 0) {
-                    if (data[pos + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                }
-                //bottom right
-                else if (pos == (numberOfColumns - 1)) {
-                    if (data[pos - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                }
-                //top left
-                else if (pos == (numberOfCells - numberOfColumns)) {
-                    if (data[pos + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                }
-                //top right
-                else if (pos == numberOfCells - 1) {
-                    if (data[pos - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                }
-                //bottom row
-                else if (pos < numberOfColumns) {
-                    if (data[pos - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                }
-                //top row
-                else if (pos > numberOfCells - numberOfColumns) {
-                    if (data[pos - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                }
-                //left column
-                else if (pos % numberOfColumns == 0) {
-                    if (data[pos + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                }
-                //right column
-                else if (pos % numberOfColumns == (numberOfColumns - 1)) {
-                    if (data[pos - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                }
-                //the rest (inner cells)
-                else {
-                    if (data[pos - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos + numberOfColumns - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns + 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                    if (data[pos - numberOfColumns - 1] == 9) {
-                        data[pos] = data[pos] + 1;
-                    }
-                }
-            }
-        }
     }
 
     /**
@@ -649,69 +440,61 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
      * @param savedStatus A string coding the status of each Cell (if it is untouched, revealed or marked)
      */
     public void fillSavedGame(String savedContent, String savedStatus){
-
-        //Parce the Stings
-      //  String[] parcedContent = savedContent.split("");
-      //  String[] parcedStatus = savedStatus.split("");
-
         //Fill the Playing Field by going through Cell by Cell, filling it with the saved content and setting it to the appropriate status
-        for (int i = 0; i < numberOfCells; i++) {
-         //   data[i] = Integer.parseInt(parcedContent[i+1]);
-         //   status[i] = Integer.parseInt(parcedStatus[i+1]);
-
+        for (int i = 0; i < mineSweeper.getNumberOfCells(); i++) {
             RecyclerView.ViewHolder holder = recyclerView.findViewHolderForAdapterPosition(i);
             CellView cell = (CellView) holder.itemView.findViewById(R.id.cell);
 
-            if (status[i] == 1) {
-                switch (data[i]) {
+            if (mineSweeper.getStatus()[i] == 1) {
+                switch (mineSweeper.getData()[i]) {
                     case 0:
                         cell.setText("");
                         break;
                     case 1:
-                        cell.setText(String.valueOf(data[i]));
+                        cell.setText(String.valueOf(mineSweeper.getData()[i]));
                         cell.setTextColor(getResources().getColor(R.color.darkblue));
                         break;
                     case 2:
-                        cell.setText(String.valueOf(data[i]));
+                        cell.setText(String.valueOf(mineSweeper.getData()[i]));
                         cell.setTextColor(getResources().getColor(R.color.darkgreen));
                         break;
                     case 3:
-                        cell.setText(String.valueOf(data[i]));
+                        cell.setText(String.valueOf(mineSweeper.getData()[i]));
                         cell.setTextColor(getResources().getColor(R.color.red));
                         break;
                     case 4:
-                        cell.setText(String.valueOf(data[i]));
+                        cell.setText(String.valueOf(mineSweeper.getData()[i]));
                         cell.setTextColor(getResources().getColor(R.color.darkblue));
                         break;
                     case 5:
-                        cell.setText(String.valueOf(data[i]));
+                        cell.setText(String.valueOf(mineSweeper.getData()[i]));
                         cell.setTextColor(getResources().getColor(R.color.brown));
                         break;
                     case 6:
-                        cell.setText(String.valueOf(data[i]));
+                        cell.setText(String.valueOf(mineSweeper.getData()[i]));
                         cell.setTextColor(getResources().getColor(R.color.cyan));
                         break;
                     case 7:
-                        cell.setText(String.valueOf(data[i]));
+                        cell.setText(String.valueOf(mineSweeper.getData()[i]));
                         cell.setTextColor(getResources().getColor(R.color.black));
                         break;
                     case 8:
-                        cell.setText(String.valueOf(data[i]));
+                        cell.setText(String.valueOf(mineSweeper.getData()[i]));
                         cell.setTextColor(getResources().getColor(R.color.black));
                         break;
                 }
 
                 cell.setBackgroundColor(ResourcesCompat.getColor(getResources(), R.color.middleblue, null));
 
-                countDownToWin--;
-            } else if (status[i] == 2) {
+                mineSweeper.setCountDownToWin(mineSweeper.getCountDownToWin() - 1);
+            } else if (mineSweeper.getStatus()[i] == 2) {
                 SpannableStringBuilder builder = new SpannableStringBuilder();
                 Drawable img = getDrawable(R.drawable.flagge);
                 img.setBounds(0, 0, img.getIntrinsicWidth() * cell.getMeasuredHeight() / img.getIntrinsicHeight(), cell.getMeasuredHeight());
                 cell.setCompoundDrawables(img,null,null,null);
-                bombsLeft--;
-                countDownToWin--;
-                mines.setText(String.valueOf(bombsLeft));
+                mineSweeper.setBombsLeft(mineSweeper.getBombsLeft() - 1);
+                mineSweeper.setCountDownToWin(mineSweeper.getCountDownToWin() - 1);
+                mines.setText(String.valueOf(mineSweeper.getBombsLeft()));
             }
         }
 
@@ -720,124 +503,6 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
 
         firstClick = true;
 
-    }
-
-    /**
-     * This method counts the number of horizontally and vertically neighbouring bombs of a cell
-     * @param position position of the cell on the playing field
-     * @param counterBombs variable to count number of bombs (recursively)
-     * @param rootPosition position / cell that invokes the method (mustn't considered as neighbour)
-     * @param checkedNeighbours all checked neighbours are stored to ensure that they are not counted twice
-     * @return number of (recursively) neighbouring bombs of the cell at position
-     */
-    private int numberOfNeighbouringBombs(int position, int counterBombs, int rootPosition, ArrayList<Integer> checkedNeighbours){
-
-        //increase counter if there is a bomb on the cell at position and store the position
-        if(data[position] == 9){
-            checkedNeighbours.add(position);
-            counterBombs++;
-        }
-
-        //bottom left
-        if(position == 0){
-            if ((data[position + 1] == 9) && ((position + 1) != rootPosition) && (!checkedNeighbours.contains(position + 1))) {
-                counterBombs += numberOfNeighbouringBombs(position + 1, 0, position, checkedNeighbours);
-            }
-            if ((data[position + numberOfColumns] == 9) && ((position + numberOfColumns) != rootPosition) && (!checkedNeighbours.contains(position + numberOfColumns))) {
-                counterBombs += numberOfNeighbouringBombs(position + numberOfColumns, 0, position, checkedNeighbours);
-            }
-        }
-        //bottom right
-        else if(position == (numberOfColumns - 1)){
-            if ((data[position - 1] == 9) && ((position - 1) != rootPosition) && (!checkedNeighbours.contains(position - 1))) {
-                counterBombs += numberOfNeighbouringBombs(position - 1, 0, position, checkedNeighbours);
-            }
-            if ((data[position + numberOfColumns] == 9) && ((position + numberOfColumns) != rootPosition) && (!checkedNeighbours.contains(position + numberOfColumns))) {
-                counterBombs += numberOfNeighbouringBombs(position + numberOfColumns, 0, position, checkedNeighbours);
-            }
-        }
-        //top left
-        else if(position == (numberOfCells - numberOfColumns)){
-            if ((data[position + 1] == 9) && ((position + 1) != rootPosition) && (!checkedNeighbours.contains(position + 1))) {
-                counterBombs += numberOfNeighbouringBombs(position + 1, 0, position, checkedNeighbours);
-            }
-            if ((data[position - numberOfColumns] == 9) && ((position - numberOfColumns) != rootPosition) && (!checkedNeighbours.contains(position - numberOfColumns))) {
-                counterBombs += numberOfNeighbouringBombs(position - numberOfColumns, 0, position, checkedNeighbours);
-            }
-        }
-        //top right
-        else if(position == (numberOfCells - 1)){
-            if ((data[position - 1] == 9) && ((position - 1) != rootPosition) && (!checkedNeighbours.contains(position - 1))) {
-                counterBombs += numberOfNeighbouringBombs(position - 1, 0, position, checkedNeighbours);
-            }
-            if ((data[position - numberOfColumns] == 9) && ((position - numberOfColumns) != rootPosition) && (!checkedNeighbours.contains(position - numberOfColumns))) {
-                counterBombs += numberOfNeighbouringBombs(position - numberOfColumns, 0, position, checkedNeighbours);
-            }
-        }
-        //bottom row
-        else if(position < numberOfColumns){
-            if ((data[position - 1] == 9) && ((position - 1) != rootPosition) && (!checkedNeighbours.contains(position - 1))) {
-                counterBombs += numberOfNeighbouringBombs(position - 1, 0, position, checkedNeighbours);
-            }
-            if ((data[position + 1] == 9) && ((position + 1) != rootPosition) && (!checkedNeighbours.contains(position + 1))) {
-                counterBombs += numberOfNeighbouringBombs(position + 1, 0, position, checkedNeighbours);
-            }
-            if ((data[position + numberOfColumns] == 9) && ((position + numberOfColumns) != rootPosition) && (!checkedNeighbours.contains(position + numberOfColumns))) {
-                counterBombs += numberOfNeighbouringBombs(position + numberOfColumns, 0, position, checkedNeighbours);
-            }
-        }
-        //top row
-        else if(position > (numberOfCells - numberOfColumns)){
-            if ((data[position - 1] == 9) && ((position - 1) != rootPosition) && (!checkedNeighbours.contains(position - 1))) {
-                counterBombs += numberOfNeighbouringBombs(position - 1, 0, position, checkedNeighbours);
-            }
-            if ((data[position + 1] == 9) && ((position + 1) != rootPosition) && (!checkedNeighbours.contains(position + 1))) {
-                counterBombs += numberOfNeighbouringBombs(position + 1, 0, position, checkedNeighbours);
-            }
-            if ((data[position - numberOfColumns] == 9) && ((position - numberOfColumns) != rootPosition) && (!checkedNeighbours.contains(position - numberOfColumns))) {
-                counterBombs += numberOfNeighbouringBombs(position - numberOfColumns, 0, position, checkedNeighbours);
-            }
-        }
-        //left column
-        else if((position % numberOfColumns) == 0){
-            if ((data[position + 1] == 9) && ((position + 1) != rootPosition) && (!checkedNeighbours.contains(position + 1))) {
-                counterBombs += numberOfNeighbouringBombs(position + 1, 0, position, checkedNeighbours);
-            }
-            if ((data[position + numberOfColumns] == 9) && ((position + numberOfColumns) != rootPosition) && (!checkedNeighbours.contains(position + numberOfColumns))) {
-                counterBombs += numberOfNeighbouringBombs(position + numberOfColumns, 0, position, checkedNeighbours);
-            }
-            if ((data[position - numberOfColumns] == 9) && ((position - numberOfColumns) != rootPosition) && (!checkedNeighbours.contains(position - numberOfColumns))) {
-                counterBombs += numberOfNeighbouringBombs(position - numberOfColumns, 0, position, checkedNeighbours);
-            }
-        }
-        //right column
-        else if((position % numberOfColumns) == (numberOfColumns - 1)){
-            if ((data[position - 1] == 9) && ((position - 1) != rootPosition) && (!checkedNeighbours.contains(position - 1))) {
-                counterBombs += numberOfNeighbouringBombs(position - 1, 0, position, checkedNeighbours);
-            }
-            if ((data[position + numberOfColumns] == 9) && ((position + numberOfColumns) != rootPosition) && (!checkedNeighbours.contains(position + numberOfColumns))) {
-                counterBombs += numberOfNeighbouringBombs(position + numberOfColumns, 0, position, checkedNeighbours);
-            }
-            if ((data[position - numberOfColumns] == 9) && ((position - numberOfColumns) != rootPosition) && (!checkedNeighbours.contains(position - numberOfColumns))) {
-                counterBombs += numberOfNeighbouringBombs(position - numberOfColumns, 0, position, checkedNeighbours);
-            }
-        }
-        //inner cells
-        else{
-            if ((data[position - 1] == 9) && ((position - 1) != rootPosition) && (!checkedNeighbours.contains(position - 1))) {
-                counterBombs += numberOfNeighbouringBombs(position - 1, 0, position, checkedNeighbours);
-            }
-            if ((data[position + 1] == 9) && ((position + 1) != rootPosition) && (!checkedNeighbours.contains(position + 1))) {
-                counterBombs += numberOfNeighbouringBombs(position + 1, 0, position, checkedNeighbours);
-            }
-            if ((data[position + numberOfColumns] == 9) && ((position + numberOfColumns) != rootPosition) && (!checkedNeighbours.contains(position + numberOfColumns))) {
-                counterBombs += numberOfNeighbouringBombs(position + numberOfColumns, 0, position, checkedNeighbours);
-            }
-            if ((data[position - numberOfColumns] == 9) && ((position - numberOfColumns) != rootPosition) && (!checkedNeighbours.contains(position - numberOfColumns))) {
-                counterBombs += numberOfNeighbouringBombs(position - numberOfColumns, 0, position, checkedNeighbours);
-            }
-        }
-        return counterBombs;
     }
 
     /**
@@ -850,9 +515,9 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
         //on the first click the timer must be started and the PlayingField must be filled
         if (firstClick) {
             if (!savecheck) {
-                fillPlayingField(position);
+                mineSweeper.fillPlayingField(position);
                 firstClick = false;
-                gameEnded = false;
+                mineSweeper.setGameEnded(false);
 
                 timer = (Chronometer) toolbar.findViewById(R.id.chronometer);
                 timer.setBase(SystemClock.elapsedRealtime());
@@ -869,393 +534,137 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
         CellView cell = (CellView) cellview.getChildAt(0);
 
         //check if cell is already revealed and has the right amount of mines marked
-         if (status[position] == 1) {
-             revealingAround = true;
-             revealAroundCell(position, true);
-             revealingAround = false;
+         if (mineSweeper.getStatus()[position] == 1) {
+             ArrayList<Integer> revealed = new ArrayList<>();
+             mineSweeper.revealAroundCell(position, true, revealed);
+             updateForRevealedCells(revealed);
          } else
         //check if we are in marking mode
-        if (marking) {
+        if (mineSweeper.isMarking()) {
             //only if the cell is not revealed
-            if (status[position] != 1) {
+            if (mineSweeper.getStatus()[position] != 1) {
                 //check if already marked
-                if (status[position] == 2) {
-                    countDownToWin++;
-                    status[position] = 0;
+                if (mineSweeper.getStatus()[position] == 2) {
+                    mineSweeper.setCountDownToWin(mineSweeper.getCountDownToWin() + 1);
+                    mineSweeper.getStatus()[position] = 0;
                     cell.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
 
-                    bombsLeft++;
-                    mines.setText(String.valueOf(bombsLeft));
+                    mineSweeper.setBombsLeft(mineSweeper.getBombsLeft() + 1);
+                    mines.setText(String.valueOf(mineSweeper.getBombsLeft()));
                 } else {
-                    status[position] = 2;
+                    mineSweeper.getStatus()[position] = 2;
                     SpannableStringBuilder builder = new SpannableStringBuilder();
                     Drawable img = getDrawable(R.drawable.flagge);
                     img.setBounds(0, 0, img.getIntrinsicWidth() * cell.getMeasuredHeight() / img.getIntrinsicHeight(), cell.getMeasuredHeight());
                     cell.setCompoundDrawables(img,null,null,null);
 
-                    bombsLeft--;
-                    countDownToWin--;
-                    mines.setText(String.valueOf(bombsLeft));
+                    mineSweeper.setBombsLeft(mineSweeper.getBombsLeft() - 1);
+                    mineSweeper.setCountDownToWin(mineSweeper.getCountDownToWin() - 1);
+                    mines.setText(String.valueOf(mineSweeper.getBombsLeft()));
                     victoryCheck();
                 }
             }
         }
         //normal revealing of the cell
         else {
-             revealCell(position);
+            ArrayList<Integer> revealed = new ArrayList<>();
+            mineSweeper.revealCell(position, revealed);
+            updateForRevealedCells(revealed);
         }
     }
 
-    /**
-     * This method has two functions. Firstly it checks if the right amount of Bombs is marked around a revealed and clicked cell.
-     * Secondly it reveals every Cell that is not marked next to the given Position.
-     * @param position position of the cell on the playing field around witch we want to operate
-     * @param revealed if true we check if there is the right Amount of Bombs marked next to the revealed Cell at position,
-     *                 if false we reaveal all Cells in a Circle around position
-     */
-    private void revealAroundCell(int position, boolean revealed) {
-
-        //if revealed is true then
-        if (revealed) {
-            //check if the right amount of mines is tagged
-            int taggedCells = 0;
-
-            //check if position is in one corner of the Field
-            //bottom left
-            if (position == 0) {
-                if (status[position + 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns + 1] == 2) {
-                    taggedCells++;
-                }
-            }
-            //bottom right
-            else if (position == (numberOfColumns - 1)) {
-                if (status[position - 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns - 1] == 2) {
-                    taggedCells++;
-                }
-            }
-            //top left
-            else if (position == (numberOfCells - numberOfColumns)) {
-                if (status[position + 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns + 1] == 2) {
-                    taggedCells++;
-                }
-            }
-            //top right
-            else if (position == numberOfCells - 1) {
-                if (status[position - 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns - 1] == 2) {
-                    taggedCells++;
-                }
-            }
-            //bottom row
-            else if (position < numberOfColumns) {
-                if (status[position + 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns - 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns + 1] == 2) {
-                    taggedCells++;
-                }
-            }
-            //top row
-            else if (position > numberOfCells - numberOfColumns) {
-                if (status[position + 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns - 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns + 1] == 2) {
-                    taggedCells++;
-                }
-            }
-            //left column
-            else if (position % numberOfColumns == 0) {
-                if (status[position + 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns + 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns + 1] == 2) {
-                    taggedCells++;
-                }
-            }
-            //right column
-            else if (position % numberOfColumns == (numberOfColumns - 1)) {
-                if (status[position - 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns - 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns - 1] == 2) {
-                    taggedCells++;
-                }
-            }
-            //the rest (inner cells)
-            else {
-                if (status[position - 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns - 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position + numberOfColumns + 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns - 1] == 2) {
-                    taggedCells++;
-                }
-                if (status[position - numberOfColumns + 1] == 2) {
-                    taggedCells++;
-                }
-            }
-            if (taggedCells == data[position]) {
-                revealAroundCell(position, false);
-            }
-        }
-        //revealing around the cell because the cell has 0 mines adjacent (or the right amount of marks)
-        else {
-            //check position of the cell
-            //bottom left
-            if (position == 0) {
-                revealCell(position + 1);
-                revealCell(position + numberOfColumns);
-                revealCell(position + numberOfColumns + 1);
-            }
-            //bottom right
-            else if (position == (numberOfColumns - 1)) {
-                revealCell(position - 1);
-                revealCell(position + numberOfColumns);
-                revealCell(position + numberOfColumns - 1);
-            }
-            //top left
-            else if (position == (numberOfCells - numberOfColumns)) {
-                revealCell(position + 1);
-                revealCell(position - numberOfColumns);
-                revealCell(position - numberOfColumns + 1);
-            }
-            //top right
-            else if (position == numberOfCells - 1) {
-                revealCell(position - 1);
-                revealCell(position - numberOfColumns);
-                revealCell(position - numberOfColumns - 1);
-            }
-            //bottom row
-            else if (position < numberOfColumns) {
-                revealCell(position + 1);
-                revealCell(position - 1);
-                revealCell(position + numberOfColumns);
-                revealCell(position + numberOfColumns + 1);
-                revealCell(position + numberOfColumns - 1);
-            }
-            //top row
-            else if (position > numberOfCells - numberOfColumns) {
-                revealCell(position + 1);
-                revealCell(position - 1);
-                revealCell(position - numberOfColumns);
-                revealCell(position - numberOfColumns + 1);
-                revealCell(position - numberOfColumns - 1);
-            }
-            //left column
-            else if (position % numberOfColumns == 0) {
-                revealCell(position + 1);
-                revealCell(position + numberOfColumns);
-                revealCell(position + numberOfColumns + 1);
-                revealCell(position - numberOfColumns);
-                revealCell(position - numberOfColumns + 1);
-            }
-            //right column
-            else if (position % numberOfColumns == (numberOfColumns - 1)) {
-                revealCell(position - 1);
-                revealCell(position + numberOfColumns);
-                revealCell(position + numberOfColumns - 1);
-                revealCell(position - numberOfColumns);
-                revealCell(position - numberOfColumns - 1);
-            }
-            //the rest (inner cells)
-            else {
-                revealCell(position + 1);
-                revealCell(position - 1);
-                revealCell(position + numberOfColumns);
-                revealCell(position + numberOfColumns + 1);
-                revealCell(position + numberOfColumns - 1);
-                revealCell(position - numberOfColumns);
-                revealCell(position - numberOfColumns + 1);
-                revealCell(position - numberOfColumns - 1);
-            }
+    private void updateForRevealedCells(ArrayList<Integer> revealed) {
+        for(int cell : revealed){
+            updateForRevealedCell(cell);
         }
     }
 
-    /**
-     * This method handles the revealing of a Cell at a specific position
-     * @param position position of the cell on the playing field
-     */
-    private void revealCell(int position) {
-
-        //if another cell reveal already lost the game this Method doesnt do anything
-        if (gameEnded) {
-            return;
-        }
-        RecyclerView.ViewHolder holder = recyclerView.findViewHolderForAdapterPosition(position);
+    private void updateForRevealedCell(int revealedCell) {
+        RecyclerView.ViewHolder holder = recyclerView.findViewHolderForAdapterPosition(revealedCell);
         final CellView cell = (CellView) holder.itemView.findViewWithTag(maxHeight);
 
-        //only reveal if the cell is not marked or revealed
-        if (status[position] == 0) {
-            //check for gameloss
-            if (data[position] == 9) {
+        if(mineSweeper.isGameEnded()) {
+            Drawable img = getDrawable(R.drawable.mine_x);
+            img.setBounds(0, 0, img.getIntrinsicWidth() * cell.getMeasuredHeight() / img.getIntrinsicHeight(), cell.getMeasuredHeight());
+            cell.setCompoundDrawables(img,null,null,null);
 
-                Drawable img = getDrawable(R.drawable.mine_x);
-                img.setBounds(0, 0, img.getIntrinsicWidth() * cell.getMeasuredHeight() / img.getIntrinsicHeight(), cell.getMeasuredHeight());
-                cell.setCompoundDrawables(img,null,null,null);
+            timer.stop();
 
-                timer.stop();
+            long gametimeInMillis = SystemClock.elapsedRealtime() - timer.getBase();
+            long gametime = gametimeInMillis / 1000;
+            int time = (int) gametime;
 
-                long gametimeInMillis = SystemClock.elapsedRealtime() - timer.getBase();
-                long gametime = gametimeInMillis / 1000;
-                int time = (int) gametime;
+            parameter.putBoolean("victory", false);
+            parameter.putInt("time", time);
+            parameter.putString("gameMode", mineSweeper.getGame_mode());
+            parameter.putBoolean("newBestTime", newBestTime);
 
-                parameter.putBoolean("victory", false);
-                parameter.putInt("time", time);
-                parameter.putString("gameMode", game_mode);
-                parameter.putBoolean("newBestTime", newBestTime);
-
-                gameEnded = true;
-
-                lockActivityOrientation();
-                final Intent tempI = new Intent(this, VictoryScreen.class);
-                tempI.putExtras(parameter);
-                handler.postDelayed(new Runnable(){
-                    @Override
-                    public void run(){
-                        startActivityForResult(tempI, 0);
-                    }
-                }, 200);
-
-
-                //update general statistics (not for user-defined game mode)
-                if(!game_mode.equals("user-defined")){
-                    //first parameter: game mode
-                    //second parameter: 1 as one match was played
-                    //third parameter: 1 if game was won, 0 if game was lost
-                    //fourth parameter: number of uncovered fields
-                    //fifth parameter: playing time in seconds (for won games only)
-                    //sixth parameter: playing time in seconds
-                    //seventh parameter: actual date and time, here 'lost' to indicate that lost game isn't saved in top times list
-                    Object[] result_params = {game_mode, 1, 0, (numberOfCells - countDownToWin), 0, time, "lost"};
-                    writer.execute(result_params);
+            lockActivityOrientation();
+            final Intent tempI = new Intent(this, VictoryScreen.class);
+            tempI.putExtras(parameter);
+            handler.postDelayed(new Runnable(){
+                @Override
+                public void run(){
+                    startActivityForResult(tempI, 0);
                 }
+            }, 200);
 
-            } else {
-                //set cell to revealed
-                status[position] = 1;
 
-                switch (data[position]) {
-                    case 0:
-                        cell.setText("");
-                        break;
-                    case 1:
-                        cell.setText(String.valueOf(data[position]));
-                        cell.setTextColor(getResources().getColor(R.color.darkblue));
-                        break;
-                    case 2:
-                        cell.setText(String.valueOf(data[position]));
-                        cell.setTextColor(getResources().getColor(R.color.darkgreen));
-                        break;
-                    case 3:
-                        cell.setText(String.valueOf(data[position]));
-                        cell.setTextColor(getResources().getColor(R.color.red));
-                        break;
-                    case 4:
-                        cell.setText(String.valueOf(data[position]));
-                        cell.setTextColor(getResources().getColor(R.color.darkblue));
-                        break;
-                    case 5:
-                        cell.setText(String.valueOf(data[position]));
-                        cell.setTextColor(getResources().getColor(R.color.brown));
-                        break;
-                    case 6:
-                        cell.setText(String.valueOf(data[position]));
-                        cell.setTextColor(getResources().getColor(R.color.cyan));
-                        break;
-                    case 7:
-                        cell.setText(String.valueOf(data[position]));
-                        cell.setTextColor(getResources().getColor(R.color.black));
-                        break;
-                    case 8:
-                        cell.setText(String.valueOf(data[position]));
-                        cell.setTextColor(getResources().getColor(R.color.black));
-                        break;
-                }
-
-                cell.setBackgroundColor(ResourcesCompat.getColor(getResources(), R.color.middleblue, null));
-
-                countDownToWin--;
-                victoryCheck();
-
-                //check if automatic reveal of surrounding cells is needed
-                if (data[position] == 0) {
-                    revealAroundCell(position, false);
-                }
+            //update general statistics (not for user-defined game mode)
+            if(!mineSweeper.getGame_mode().equals("user-defined")){
+                //first parameter: game mode
+                //second parameter: 1 as one match was played
+                //third parameter: 1 if game was won, 0 if game was lost
+                //fourth parameter: number of uncovered fields
+                //fifth parameter: playing time in seconds (for won games only)
+                //sixth parameter: playing time in seconds
+                //seventh parameter: actual date and time, here 'lost' to indicate that lost game isn't saved in top times list
+                Object[] result_params = {mineSweeper.getGame_mode(), 1, 0, (mineSweeper.getNumberOfCells() - mineSweeper.getCountDownToWin()), 0, time, "lost"};
+                writer.execute(result_params);
             }
+        } else {
+            int cellValue = mineSweeper.getData()[revealedCell];
+            switch (cellValue) {
+                case 0:
+                    cell.setText("");
+                    break;
+                case 1:
+                    cell.setText(String.valueOf(cellValue));
+                    cell.setTextColor(getResources().getColor(R.color.darkblue));
+                    break;
+                case 2:
+                    cell.setText(String.valueOf(cellValue));
+                    cell.setTextColor(getResources().getColor(R.color.darkgreen));
+                    break;
+                case 3:
+                    cell.setText(String.valueOf(cellValue));
+                    cell.setTextColor(getResources().getColor(R.color.red));
+                    break;
+                case 4:
+                    cell.setText(String.valueOf(cellValue));
+                    cell.setTextColor(getResources().getColor(R.color.darkblue));
+                    break;
+                case 5:
+                    cell.setText(String.valueOf(cellValue));
+                    cell.setTextColor(getResources().getColor(R.color.brown));
+                    break;
+                case 6:
+                    cell.setText(String.valueOf(cellValue));
+                    cell.setTextColor(getResources().getColor(R.color.cyan));
+                    break;
+                case 7:
+                    cell.setText(String.valueOf(cellValue));
+                    cell.setTextColor(getResources().getColor(R.color.black));
+                    break;
+                case 8:
+                    cell.setText(String.valueOf(cellValue));
+                    cell.setTextColor(getResources().getColor(R.color.black));
+                    break;
+            }
+
+            cell.setBackgroundColor(ResourcesCompat.getColor(getResources(), R.color.middleblue, null));
+
+            victoryCheck();
         }
     }
 
@@ -1263,9 +672,8 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
      * This method checks if the game is won and
      */
     private void victoryCheck() {
-        //if all Cells are revealed or marked and the right Number of Bombs is marked
-        if(countDownToWin == 0 && bombsLeft == 0) {
-            gameEnded = true;
+        if(mineSweeper.isGameWon()) {
+            mineSweeper.setGameEnded(true);
 
             long gametimeInMillis = SystemClock.elapsedRealtime() - timer.getBase();
             long gametime = gametimeInMillis / 1000;
@@ -1273,13 +681,13 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
 
             timer.stop();
 
-            if(bestTime > time && !game_mode.equals("user-defined")){
+            if(bestTime > time && !mineSweeper.getGame_mode().equals("user-defined")){
                 newBestTime = true;
             }
 
             parameter.putBoolean("victory", true);
             parameter.putInt("time", time);
-            parameter.putString("gameMode", game_mode);
+            parameter.putString("gameMode", mineSweeper.getGame_mode());
             parameter.putBoolean("newBestTime", newBestTime);
 
             //start victory screen
@@ -1289,7 +697,7 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
             startActivityForResult(tempI, 0);
 
             //update general statistics (not for user-defined game mode)
-            if(!game_mode.equals("user-defined")){
+            if(!mineSweeper.getGame_mode().equals("user-defined")){
                 //first parameter: game mode
                 //second parameter: 1 as one match was played
                 //third parameter: 1 if game was won, 0 if game was lost
@@ -1297,7 +705,7 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
                 //fifth parameter: playing time in seconds (for won games only)
                 //sixth parameter: playing time in seconds
                 //seventh parameter: actual date and time
-                Object[] result_params = {game_mode, 1, 1, (numberOfCells - countDownToWin), time, time, DateFormat.getDateTimeInstance().format(new Date())};
+                Object[] result_params = {mineSweeper.getGame_mode(), 1, 1, (mineSweeper.getNumberOfCells() - mineSweeper.getCountDownToWin()), time, time, DateFormat.getDateTimeInstance().format(new Date())};
                 writer.execute(result_params);
             }
         }
@@ -1325,9 +733,9 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
     public void onStop(){
 
             //check if the game has not ended
-            if (!gameEnded){
+            if (!mineSweeper.isGameEnded()){
                 //no saving of user defined mode
-                if (game_mode.equals("user-defined")) {
+                if (mineSweeper.getGame_mode().equals("user-defined")) {
                     //do nothing
                 } else {
                     //ready the save Data
@@ -1344,41 +752,39 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
                     //if we are in landscape mode we have to change our data back to normal before saving
                     if(landscape){
 
-                        landscape_data = new int[data.length];
+                        mineSweeper.setLandscape_data(new int[mineSweeper.getData().length]);
                         int x = 1;
-                        int start = numberOfColumns;
+                        int start = mineSweeper.getNumberOfColumns();
                         int now = start;
-                        for (int i = 0; i < data.length; i++) {
-                            landscape_data[i] = data[now - x];
-                            now = now + numberOfColumns;
-                            if(now > numberOfCells) {
+                        for (int i = 0; i < mineSweeper.getData().length; i++) {
+                            mineSweeper.getLandscape_data()[i] = mineSweeper.getData()[now - x];
+                            now = now + mineSweeper.getNumberOfColumns();
+                            if(now > mineSweeper.getNumberOfCells()) {
                                 now = start;
                                 x++;
                             }
                         }
-                        not_in_use_data = data;
-                        data = landscape_data;
+                        mineSweeper.setData(mineSweeper.getLandscape_data());
 
 
-                        landscape_status = new int[status.length];
+                        mineSweeper.setLandscape_status(new int[mineSweeper.getStatus().length]);
                         x = 1;
-                        start = numberOfColumns;
+                        start = mineSweeper.getNumberOfColumns();
                         now = start;
-                        for (int i = 0; i < status.length; i++) {
-                            landscape_status[i] = status[now - x];
-                            now = now + numberOfColumns;
-                            if(now > numberOfCells) {
+                        for (int i = 0; i < mineSweeper.getStatus().length; i++) {
+                            mineSweeper.getLandscape_status()[i] = mineSweeper.getStatus()[now - x];
+                            now = now + mineSweeper.getNumberOfColumns();
+                            if(now > mineSweeper.getNumberOfCells()) {
                                 now = start;
                                 x++;
                             }
                         }
-                        not_in_use_status = status;
-                        status = landscape_status;
+                        mineSweeper.setStatus(mineSweeper.getLandscape_status());
 
                         //switch back
-                        int save = numberOfColumns;
-                        numberOfColumns = numberOfRows;
-                        numberOfRows = save;
+                        int save = mineSweeper.getNumberOfColumns();
+                        mineSweeper.setNumberOfColumns(mineSweeper.getNumberOfRows());
+                        mineSweeper.setNumberOfRows(save);
                     }
 
                     //check if we need to save into database or not
@@ -1386,9 +792,9 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
                     } else {
                         StringBuilder content = new StringBuilder();
                         StringBuilder states = new StringBuilder();
-                        for (int i = 0; i < data.length; i++) {
-                            content.append(data[i]);
-                            states.append(status[i]);
+                        for (int i = 0; i < mineSweeper.getData().length; i++) {
+                            content.append(mineSweeper.getData()[i]);
+                            states.append(mineSweeper.getStatus()[i]);
                         }
 
 
@@ -1400,7 +806,7 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
                         //fifth parameter: string coding the content of the playingfield
                         //sixth parameter: string coding the status of the playingfield
                         DatabaseSavedGameWriter writer = new DatabaseSavedGameWriter(new PFMSQLiteHelper(getApplicationContext()), this);
-                        Object[] data = {game_mode, time, DateFormat.getDateTimeInstance().format(new Date()), (((double)numberOfCells - countDownToWin)/numberOfCells), content, states};
+                        Object[] data = {mineSweeper.getGame_mode(), time, DateFormat.getDateTimeInstance().format(new Date()), (((double) mineSweeper.getNumberOfCells() - mineSweeper.getCountDownToWin())/ mineSweeper.getNumberOfCells()), content, states};
                         writer.execute(data);
 
                         //notify that game is saved
@@ -1428,36 +834,34 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
 
             if(landscape){
 
-                landscape_data = new int[data.length];
+                mineSweeper.setLandscape_data(new int[mineSweeper.getData().length]);
                 int x = 1;
-                int start = numberOfColumns;
+                int start = mineSweeper.getNumberOfColumns();
                 int now = start;
-                for (int i = 0; i < data.length; i++) {
-                    landscape_data[i] = data[now - x];
-                    now = now + numberOfColumns;
-                    if(now > numberOfCells) {
+                for (int i = 0; i < mineSweeper.getData().length; i++) {
+                    mineSweeper.getLandscape_data()[i] = mineSweeper.getData()[now - x];
+                    now = now + mineSweeper.getNumberOfColumns();
+                    if(now > mineSweeper.getNumberOfCells()) {
                         now = start;
                         x++;
                     }
                 }
-                not_in_use_data = data;
-                data = landscape_data;
+                mineSweeper.setData(mineSweeper.getLandscape_data());
 
 
-                landscape_status = new int[status.length];
+                mineSweeper.setLandscape_status(new int[mineSweeper.getStatus().length]);
                 x = 1;
-                start = numberOfColumns;
+                start = mineSweeper.getNumberOfColumns();
                 now = start;
-                for (int i = 0; i < status.length; i++) {
-                    landscape_status[i] = status[now - x];
-                    now = now + numberOfColumns;
-                    if(now > numberOfCells) {
+                for (int i = 0; i < mineSweeper.getStatus().length; i++) {
+                    mineSweeper.getLandscape_status()[i] = mineSweeper.getStatus()[now - x];
+                    now = now + mineSweeper.getNumberOfColumns();
+                    if(now > mineSweeper.getNumberOfCells()) {
                         now = start;
                         x++;
                     }
                 }
-                not_in_use_status = status;
-                status = landscape_status;
+                mineSweeper.setStatus(mineSweeper.getLandscape_status());
 
             }
             int time;
@@ -1470,19 +874,19 @@ public class PlayActivity extends AppCompatActivity implements PlayRecyclerViewA
                 time = (int) gametime;
             }
 
-            if (numberOfRows < numberOfColumns) {
-                int save = numberOfColumns;
-                numberOfColumns = numberOfRows;
-                numberOfRows = save;
+            if (mineSweeper.getNumberOfRows() < mineSweeper.getNumberOfColumns()) {
+                int save = mineSweeper.getNumberOfColumns();
+                mineSweeper.setNumberOfColumns(mineSweeper.getNumberOfRows());
+                mineSweeper.setNumberOfRows(save);
             }
             // Save the current game state
-            savedInstanceState.putInt("columns", numberOfColumns);
-            savedInstanceState.putInt("rows", numberOfRows);
-            savedInstanceState.putIntArray("data", data);
-            savedInstanceState.putIntArray("status", status);
+            savedInstanceState.putInt("columns", mineSweeper.getNumberOfColumns());
+            savedInstanceState.putInt("rows", mineSweeper.getNumberOfRows());
+            savedInstanceState.putIntArray("data", mineSweeper.getData());
+            savedInstanceState.putIntArray("status", mineSweeper.getStatus());
             savedInstanceState.putInt("time", time);
             savedInstanceState.putBoolean("firstclick", firstClick);
-            savedInstanceState.putBoolean("gameended", gameEnded);
+            savedInstanceState.putBoolean("gameended", mineSweeper.isGameEnded());
 
             Boolean empty;
             if (firstClick && !savecheck) {
